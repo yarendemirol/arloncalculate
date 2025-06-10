@@ -270,7 +270,7 @@ if alternatives and criteria:
             label=crit,
             format="%.6f",  # 6 ondalık hane hassasiyet
             min_value=0.0,
-            max_value=10.0 # Puanlarınızın max değeri 10 olduğu için
+            max_value=1000.0 # Güncellendi: Artık 1000.0'e kadar değer girilebilir
         )
 
     edited_df = st.data_editor(
@@ -353,5 +353,3 @@ if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty an
         st.error(f"Beklenmedik bir hata oluştu: {e}")
 else:
     st.info("Lütfen tüm veri girişlerini tamamlayın ve 'ARLON Analizini Başlat' butonuna tıklayın.")
-
-
