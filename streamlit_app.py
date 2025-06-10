@@ -124,12 +124,29 @@ criterion_types = {}
 for i in range(num_criteria):
     col1, col2 = st.columns(2)
     with col1:
-        # Changed: Removed default_crit_name and default_crit_type
-        crit_name = st.text_input(f"Kriter {i+1} Adı:", value="", key=f"crit_name_{i}") # Value is empty
+        # Örnek kriter isimleri ve tipleriyle önceden dolduralım
+        default_crit_name = f"Kriter {i+1}"
+        default_crit_type = 'Fayda' # Varsayılan Fayda
+
+        # Sizin verdiğiniz orijinal kriterler için varsayılan değerleri ayarlayalım
+        if i == 0:
+            default_crit_name = 'Lojistik Maliyeti'
+            default_crit_type = 'Maliyet'
+        elif i == 1: default_crit_name = 'Teslimat Süresi'
+        elif i == 2: default_crit_name = 'Müşteri Memnuniyeti'
+        elif i == 3: default_crit_name = 'İade Süreci Verimliliği'
+        elif i == 4: default_crit_name = 'Sipariş Doğruluğu'
+        elif i == 5: default_crit_name = 'Takip Sistemi Etkinliği'
+        elif i == 6: default_crit_name = 'Envanter Yönetimi Verimliliği'
+        elif i == 7: default_crit_name = 'Son Mil Teslimat Çözümleri'
+        elif i == 8: default_crit_name = 'Lojistikte Sürdürülebilirlik'
+
+
+        crit_name = st.text_input(f"Kriter {i+1} Adı:", value=default_crit_name, key=f"crit_name_{i}")
         if crit_name:
             criteria.append(crit_name)
     with col2:
-        crit_type = st.radio(f"Kriter '{crit_name}' Tipi:", ('Fayda', 'Maliyet'), index=0, key=f"crit_type_{i}") # Default to 'Fayda'
+        crit_type = st.radio(f"Kriter '{crit_name}' Tipi:", ('Fayda', 'Maliyet'), index=0 if default_crit_type == 'Fayda' else 1, key=f"crit_type_{i}")
         criterion_types[crit_name] = crit_type
 
 benefit_criteria = [c for c, t in criterion_types.items() if t == 'Fayda']
@@ -141,18 +158,32 @@ st.info("Kriter ağırlıklarını daha fazla ondalık hane hassasiyetiyle gireb
 criterion_weights_input = {}
 if criteria:
     weight_cols = st.columns(len(criteria))
-    # Removed: original_criterion_raw_scores and calculated_avg_weights
+    # Sizin orijinal anket puanlarınızdan ağırlık ortalamalarını hesaplayıp önceden dolduralım
+    original_criterion_raw_scores = {
+        'Lojistik Maliyeti': [10, 10, 10, 9, 9, 9, 8, 7, 6, 6],
+        'Teslimat Süresi': [10, 10, 10, 9, 9, 9, 8, 7, 7, 7],
+        'Müşteri Memnuniyeti': [10, 10, 10, 10, 9, 8, 8, 7, 7, 6],
+        'İade Süreci Verimliliği': [10, 10, 9, 9, 8, 8, 7, 7, 7, 5],
+        'Sipariş Doğruluğu': [10, 10, 10, 10, 9, 9, 9, 8, 8, 7],
+        'Takip Sistemi Etkinliği': [10, 10, 10, 10, 9, 8, 8, 8, 6, 5],
+        'Envanter Yönetimi Verimliliği': [10, 10, 10, 9, 9, 9, 8, 8, 8, 6],
+        'Son Mil Teslimat Çözümleri': [10, 9, 9, 9, 8, 7, 7, 6, 5, 4],
+        'Lojistikte Sürdürülebilirlik': [10, 10, 9, 8, 7, 7, 5, 4, 4, 3]
+    }
+    calculated_avg_weights = {crit: np.mean(scores) for crit, scores in original_criterion_raw_scores.items()}
+
+
     for i, crit in enumerate(criteria):
         with weight_cols[i]:
-            # Changed: Default weight value is now a simple calculation, not based on previous data
-            default_weight_value = 1.0 / len(criteria)
+            # Eğer kriter orijinal listede varsa, ortalama puanını varsayılan değer olarak kullan
+            default_weight_value = calculated_avg_weights.get(crit, 1.0 / len(criteria)) # Bulamazsa eşit dağıt
             weight = st.number_input(
                 f"{crit} Ağırlığı:",
                 min_value=0.0,
-                max_value=100.0,
-                value=float(default_weight_value), # Default to even distribution
-                step=0.000001,
-                format="%.6f",
+                max_value=100.0, # Max değeri, ortalama puanlar 10'a kadar çıkabildiği için ayarladık
+                value=float(default_weight_value),
+                step=0.000001, # Daha küçük adım boyutu
+                format="%.6f", # 6 ondalık hane hassasiyeti
                 key=f"weight_{crit}"
             )
             criterion_weights_input[crit] = weight
@@ -180,20 +211,66 @@ st.subheader("Karar Matrisi (Alternatiflerin Kriterlere Göre Performans Değerl
 st.markdown("Her bir alternatif için her bir kriterdeki performans değerini giriniz. Hassasiyet için daha fazla ondalık hane kullanabilirsiniz.")
 
 if alternatives and criteria:
-    # Removed: original_company_raw_scores and the logic to calculate initial_df based on averages.
-    # Now, initial_df will be filled with zeros or an empty DataFrame if no criteria/alternatives yet.
-    df_data = {crit: [0.0] * len(alternatives) for crit in criteria} # Initialize with zeros
-    initial_df = pd.DataFrame(df_data, index=alternatives)
+    # Sizin orijinal şirket verilerinizden ortalamaları hesaplayıp varsayılan değer olarak kullanalım
+    original_company_raw_scores = {
+        'Trendyol': {
+            'Teslimat Süresi': [4, 7, 8, 8, 9, 9, 9, 10, 10, 10],
+            'Müşteri Memnuniyeti': [10, 10, 10, 10, 9, 9, 8, 7, 7, 4],
+            'İade Süreci Verimliliği': [10, 10, 10, 9, 9, 8, 8, 8, 7, 4],
+            'Sipariş Doğruluğu': [10, 10, 9, 9, 9, 8, 8, 8, 5, 4],
+            'Takip Sistemi Etkinliği': [10, 9, 9, 9, 9, 8, 8, 8, 8, 3],
+            'Envanter Yönetimi Verimliliği': [9, 8, 8, 8, 8, 8, 8, 6, 6, 4],
+            'Son Mil Teslimat Çözümleri': [9, 9, 9, 9, 9, 8, 7, 7, 7, 4],
+            'Lojistikte Sürdürülebilirlik': [10, 9, 9, 7, 7, 7, 7, 6, 6, 4]
+        },
+        'Amazon': {
+            'Teslimat Süresi': [10, 10, 10, 10, 10, 10, 9, 9, 9, 2],
+            'Müşteri Memnuniyeti': [10, 10, 10, 10, 9, 9, 9, 9, 9, 4],
+            'İade Süreci Verimliliği': [10, 10, 10, 10, 10, 9, 9, 9, 8, 4],
+            'Sipariş Doğruluğu': [9, 9, 9, 9, 9, 9, 10, 10, 3, 2],
+            'Takip Sistemi Etkinliği': [10, 10, 10, 9, 9, 9, 9, 8, 7, 2],
+            'Envanter Yönetimi Verimliliği': [10, 10, 10, 10, 9, 9, 9, 9, 8, 4],
+            'Son Mil Teslimat Çözümleri': [10, 9, 9, 9, 9, 9, 9, 8, 7, 4],
+            'Lojistikte Sürdürülebilirlik': [10, 10, 9, 9, 9, 9, 8, 8, 8, 4]
+        },
+        'Hepsiburada': {
+            'Teslimat Süresi': [8, 8, 8, 8, 2, 4, 7, 7, 9, 10],
+            'Müşteri Memnuniyeti': [8, 8, 8, 7, 7, 7, 4, 4, 9, 10],
+            'İade Süreci Verimliliği': [9, 9, 9, 9, 7, 7, 7, 6, 4, 1],
+            'Sipariş Doğruluğu': [10, 9, 9, 8, 8, 8, 7, 7, 4, 2],
+            'Takip Sistemi Etkinliği': [10, 10, 8, 8, 7, 7, 7, 7, 1, 2],
+            'Envanter Yönetimi Verimliliği': [10, 10, 8, 7, 7, 7, 7, 7, 4, 1],
+            'Son Mil Teslimat Çözümleri': [8, 8, 8, 8, 8, 10, 9, 7, 6, 4],
+            'Lojistikte Sürdürülebilirlik': [9, 9, 9, 8, 8, 6, 6, 6, 5, 4]
+        }
+    }
+    # Lojistik Maliyeti için şirketlerin ham puanları (manuel eklenen)
+    original_company_raw_scores['Trendyol']['Lojistik Maliyeti'] = [10,10,10,10,9,9,8,7,7,4]
+    original_company_raw_scores['Amazon']['Lojistik Maliyeti'] = [10,10,10,9,9,8,8,7,6,3]
+    original_company_raw_scores['Hepsiburada']['Lojistik Maliyeti'] = [10,10,8,8,8,7,7,6,3,2]
 
+    # Ortalama performans değerlerini hesaplayıp initial_df'i dolduralım
+    df_data = {}
+    for crit in criteria:
+        df_data[crit] = []
+        for alt in alternatives:
+            # Orijinal verilerde alternatif ve kriter eşleşiyorsa ortalama puanı al
+            if alt in original_company_raw_scores and crit in original_company_raw_scores[alt]:
+                df_data[crit].append(np.mean(original_company_raw_scores[alt][crit]))
+            else:
+                # Eşleşmiyorsa veya yeni bir alternatif/kriterse varsayılan 0.0
+                df_data[crit].append(0.0)
+
+    initial_df = pd.DataFrame(df_data, index=alternatives)
 
     # Karar matrisi sütun yapılandırması - Hassasiyeti artır
     column_configuration = {}
     for crit in criteria:
         column_configuration[crit] = st.column_config.NumberColumn(
             label=crit,
-            format="%.6f",
+            format="%.6f",  # 6 ondalık hane hassasiyet
             min_value=0.0,
-            # No max_value set, allowing user to input any positive value
+            max_value=10.0 # Puanlarınızın max değeri 10 olduğu için
         )
 
     edited_df = st.data_editor(
@@ -201,12 +278,12 @@ if alternatives and criteria:
         num_rows="dynamic",
         use_container_width=True,
         hide_index=False,
-        column_config=column_configuration
+        column_config=column_configuration # Yeni eklenen config
     )
     initial_decision_matrix = edited_df
 else:
     st.warning("Lütfen önce alternatifleri ve kriterleri giriniz.")
-    initial_decision_matrix = pd.DataFrame()
+    initial_decision_matrix = pd.DataFrame() # Boş DataFrame
 
 
 # Zeta Değeri
