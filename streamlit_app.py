@@ -353,3 +353,5 @@ if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty an
         st.error(f"Beklenmedik bir hata oluştu: {e}")
 else:
     st.info("Lütfen tüm veri girişlerini tamamlayın ve 'ARLON Analizini Başlat' butonuna tıklayın.")
+
+
