@@ -194,7 +194,7 @@ benefit_criteria = [c for c, t in criterion_types.items() if t == 'Fayda']
 cost_criteria = [c for c, t in criterion_types.items() if t == 'Maliyet']
 
 # Kriter Ağırlıkları
-st.subheader("Girdiğiniz skorlar Kriter Ağırlıkları (toplamı 1'e yakın olmak üzere otomatik normalize edilecektir)")
+st.subheader("Lütfen Skor girin.Girdiğiniz skorlar ağırlıklandırılacak ve toplamı 1'e yakın olmak üzere otomatik normalize edilecektir")
 st.info("Skorlar ağırlıklarını daha fazla ondalık hane hassasiyetiyle girebilirsiniz.")
 criterion_weights_input = {}
 if criteria:
