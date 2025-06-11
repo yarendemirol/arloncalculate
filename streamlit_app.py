@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-st.set_page_config(layout="wide", page_title="ARLON & ARAS Methods Application")
+st.set_page_config(layout="wide", page_title="ARLON Methods Application")
 
 # --- ARLON METODU FONKSİYONU ---
 def run_arlon_method_with_intermediate_results(initial_decision_matrix, criterion_weights, benefit_criteria, cost_criteria, zeta_value):
@@ -143,8 +143,8 @@ def run_aras_method(initial_decision_matrix, criterion_weights, benefit_criteria
 
 
 # --- STREAMLIT UYGULAMASI BAŞLANGICI ---
-st.title("ARLON ve ARAS Çok Kriterli Karar Verme Yöntemleri")
-st.markdown("Bu uygulama, ARLON (Average Relative Logarithm Normalization) ve ARAS (Additive Ratio ASsessment) yöntemlerini kullanarak alternatifleri değerlendirmenizi ve sıralamanızı sağlar.")
+st.title("ARLON Çok Kriterli Karar Verme Yöntemleri")
+st.markdown("Bu uygulama, ARLON (Average Relative Logarithm Normalization) yöntemini kullanarak alternatifleri değerlendirmenizi ve sıralamanızı sağlar.")
 
 # --- DİNAMİK VERİ GİRİŞİ ---
 st.header("1. Veri Girişi")
