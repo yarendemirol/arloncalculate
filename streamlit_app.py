@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-st.set_page_config(layout="wide", page_title="ARLON Method Application")
+st.set_page_config(layout="wide", page_title="ARLON & ARAS Methods Application")
 
 # --- ARLON METODU FONKSİYONU ---
 def run_arlon_method_with_intermediate_results(initial_decision_matrix, criterion_weights, benefit_criteria, cost_criteria, zeta_value):
@@ -20,9 +20,9 @@ def run_arlon_method_with_intermediate_results(initial_decision_matrix, criterio
         prod_xij = initial_decision_matrix[col].prod()
         # Handle cases where prod_xij might be 1 (if all xij for a criterion are 1) to avoid log(1)=0 division error
         if prod_xij == 1 and (col in benefit_criteria or (col in cost_criteria and len(initial_decision_matrix) - 1 == 0)):
-             st.warning(f"Kriter '{col}' için tüm alternatif değerleri 1 olduğu için logaritma tabanı sıfır olabilir. Bu kriter için normalizasyon 1 olarak ayarlandı.")
-             normalized_log1_df[col] = 1.0 # Or appropriate handling if all values are 1
-             continue # Skip to next column
+            st.warning(f"Kriter '{col}' için tüm alternatif değerleri 1 olduğu için logaritma tabanı sıfır olabilir. Bu kriter için normalizasyon 1 olarak ayarlandı.")
+            normalized_log1_df[col] = 1.0 # Or appropriate handling if all values are 1
+            continue # Skip to next column
 
         if col in benefit_criteria:
             normalized_log1_df[col] = np.log(initial_decision_matrix[col]) / np.log(prod_xij)
@@ -101,9 +101,50 @@ def run_arlon_method_with_intermediate_results(initial_decision_matrix, criterio
 
     return final_ranking[['Final_Ranking_Score (ℝ_i)', 'Ranking']], normalized_log1_df, normalized_log2_df, aggregated_normalized_df, weighted_aggregated_normalized_df, result_df[['Cost_Sum (ℂ_i)', 'Benefit_Sum (B_i)']]
 
+
+# --- ARAS METODU FONKSİYONU ---
+def run_aras_method(initial_decision_matrix, criterion_weights, benefit_criteria, cost_criteria):
+    # Step 1: Normalize the decision matrix
+    normalized_matrix = initial_decision_matrix.copy().astype(float)
+    for col in initial_decision_matrix.columns:
+        if col in benefit_criteria:
+            normalized_matrix[col] = initial_decision_matrix[col] / initial_decision_matrix[col].sum()
+        elif col in cost_criteria:
+            normalized_matrix[col] = (1 / initial_decision_matrix[col]) / (1 / initial_decision_matrix[col]).sum()
+
+    # Step 2: Calculate the weighted normalized matrix
+    weighted_normalized_matrix = normalized_matrix.copy()
+    for col in initial_decision_matrix.columns:
+        weighted_normalized_matrix[col] = normalized_matrix[col] * criterion_weights[col]
+
+    # Step 3: Calculate the optimality function S_i for each alternative
+    optimality_function_Si = weighted_normalized_matrix.sum(axis=1)
+
+    # Step 4: Calculate the degree of optimality K_i
+    # Find the maximum S_i (ideal alternative)
+    S_max = optimality_function_Si.max()
+
+    # Avoid division by zero if S_max is 0 (unlikely with positive values, but good practice)
+    if S_max == 0:
+        st.warning("Maximum optimality function value (S_max) is zero. ARAS ranking might be affected.")
+        degree_of_optimality_Ki = pd.Series(0.0, index=initial_decision_matrix.index)
+    else:
+        degree_of_optimality_Ki = optimality_function_Si / S_max
+
+    # Step 5: Rank the alternatives
+    aras_ranking_df = pd.DataFrame({
+        'ARAS_Score (K_i)': degree_of_optimality_Ki
+    }, index=initial_decision_matrix.index)
+
+    final_ranking = aras_ranking_df.sort_values(by='ARAS_Score (K_i)', ascending=False)
+    final_ranking['Ranking'] = np.arange(1, len(final_ranking) + 1)
+
+    return final_ranking[['ARAS_Score (K_i)', 'Ranking']]
+
+
 # --- STREAMLIT UYGULAMASI BAŞLANGICI ---
-st.title("ARLON Çok Kriterli Karar Verme Yöntemi")
-st.markdown("Bu uygulama, ARLON (Average Relative Logarithm Normalization) yöntemini kullanarak alternatifleri değerlendirmenizi ve sıralamanızı sağlar.")
+st.title("ARLON ve ARAS Çok Kriterli Karar Verme Yöntemleri")
+st.markdown("Bu uygulama, ARLON (Average Relative Logarithm Normalization) ve ARAS (Additive Ratio ASsessment) yöntemlerini kullanarak alternatifleri değerlendirmenizi ve sıralamanızı sağlar.")
 
 # --- DİNAMİK VERİ GİRİŞİ ---
 st.header("1. Veri Girişi")
@@ -293,21 +334,22 @@ default_zeta = st.slider("Heron Ortalaması için Zeta (ζ) Değeri:", min_value
 st.markdown("---")
 
 # --- ARLON YÖNTEMİNİ ÇALIŞTIR ---
-if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty and not criterion_weights_series.empty:
-    st.header("2. ARLON Analiz Sonuçları")
+if st.button("Analizi Başlat") and not initial_decision_matrix.empty and not criterion_weights_series.empty:
+    st.header("2. Analiz Sonuçları")
 
     try:
         # ARLON metodunu çalıştır
-        final_ranking_default_zeta, norm1_df, norm2_df, agg_norm_df, weighted_agg_norm_df, cost_benefit_sums = run_arlon_method_with_intermediate_results(
+        st.subheader("ARLON Yöntemi Sonuçları")
+        final_ranking_arlon, norm1_df, norm2_df, agg_norm_df, weighted_agg_norm_df, cost_benefit_sums = run_arlon_method_with_intermediate_results(
             initial_decision_matrix, criterion_weights_series, benefit_criteria, cost_criteria, default_zeta
         )
 
         st.subheader(f"Alternatiflerin Nihai ARLON Sıralaması (Zeta = {default_zeta})")
-        st.dataframe(final_ranking_default_zeta.rename(columns={'Final_Ranking_Score (ℝ_i)': 'ARLON Skoru', 'Ranking': 'Sıralama'}), use_container_width=True)
+        st.dataframe(final_ranking_arlon.rename(columns={'Final_Ranking_Score (ℝ_i)': 'ARLON Skoru', 'Ranking': 'Sıralama'}), use_container_width=True)
 
         st.markdown("---")
 
-        st.subheader("Ara Sonuçlar")
+        st.subheader("ARLON Ara Sonuçları")
 
         st.markdown("#### Logaritmik Normalizasyon Matrisi (İlk Aşama - $x_{ij}^{(1)}$)")
         st.markdown("Bu tablo, ARLON metodunun ilk logaritmik normalizasyon adımından sonra elde edilen $x_{ij}^{(1)}$ değerlerini göstermektedir (Eq. 9 ve Eq. 10).")
@@ -327,7 +369,7 @@ if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty an
 
         st.markdown("---")
 
-        st.subheader("Farklı Zeta Değerleri İçin Hassasiyet Analizi")
+        st.subheader("ARLON İçin Farklı Zeta Değerleri İçin Hassasiyet Analizi")
         zeta_values = np.linspace(0.0, 1.0, 11) # 0.0'dan 1.0'a 0.1 aralıklarla
         multi_zeta_results_df = pd.DataFrame(index=initial_decision_matrix.index)
         for zeta_val in zeta_values:
@@ -336,7 +378,7 @@ if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty an
 
         st.dataframe(multi_zeta_results_df, use_container_width=True)
 
-        st.subheader("Zeta Değerlerine Göre Alternatif Skorlarının Değişimi")
+        st.subheader("ARLON: Zeta Değerlerine Göre Alternatif Skorlarının Değişimi")
         fig, ax = plt.subplots(figsize=(10, 6))
         multi_zeta_results_df.T.plot(ax=ax, marker='o')
         ax.set_title('Zeta Değerine Göre ARLON Skorlarının Değişimi')
@@ -347,9 +389,35 @@ if st.button("ARLON Analizini Başlat") and not initial_decision_matrix.empty an
         plt.tight_layout()
         st.pyplot(fig)
 
+        st.markdown("---")
+
+        # --- ARAS YÖNTEMİNİ ÇALIŞTIR ---
+        st.subheader("ARAS Yöntemi Sonuçları")
+        final_ranking_aras = run_aras_method(initial_decision_matrix, criterion_weights_series, benefit_criteria, cost_criteria)
+        st.subheader("Alternatiflerin Nihai ARAS Sıralaması")
+        st.dataframe(final_ranking_aras.rename(columns={'ARAS_Score (K_i)': 'ARAS Skoru', 'Ranking': 'Sıralama'}), use_container_width=True)
+
+        st.markdown("---")
+
+        # --- ARLON ve ARAS Yöntemi Sıralama Karşılaştırması ---
+        st.header("3. Yöntemler Arası Sıralama Karşılaştırması")
+        comparison_df = pd.DataFrame({
+            'ARLON Sıralama': final_ranking_arlon['Ranking'],
+            'ARAS Sıralama': final_ranking_aras['Ranking']
+        })
+        st.dataframe(comparison_df, use_container_width=True)
+
+        st.subheader("Sıralama Farklılıkları")
+        # Eğer sıralamalar tamamen aynıysa bilgilendirme mesajı
+        if (comparison_df['ARLON Sıralama'] == comparison_df['ARAS Sıralama']).all():
+            st.info("ARLON ve ARAS yöntemlerinin sıralamaları aynıdır.")
+        else:
+            st.warning("ARLON ve ARAS yöntemlerinin sıralamaları arasında farklılıklar bulunmaktadır.")
+
+
     except ValueError as e:
         st.error(f"Hesaplama Hatası: {e}")
     except Exception as e:
         st.error(f"Beklenmedik bir hata oluştu: {e}")
 else:
-    st.info("Lütfen tüm veri girişlerini tamamlayın ve 'ARLON Analizini Başlat' butonuna tıklayın.")
+    st.info("Lütfen tüm veri girişlerini tamamlayın ve 'Analizi Başlat' butonuna tıklayın.")
